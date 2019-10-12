@@ -216,14 +216,50 @@ document.addEventListener('DOMContentLoaded', () => {
       const gloTube = document.querySelector('.logo-academy');
       const trends = document.getElementById('yt_trend');
       const liked = document.getElementById('like');
-      const main = document.getElementById('main');
+      const subscriptions = document.getElementById('subscriptions');
+      const searchForm = document.querySelector('.search-form');
 
       const request = options => gapi.client.youtube[options.method]
         .list(options)
         .then(response => response.result.items)
-        .then(render)
-        .then(playVideo)
+        .then(data => options.method === 'subscriptions' ? renderSub(data) : render(data))
         .catch(err => console.error('Во время запроса произошла ошибка: ', err));
+
+      const renderSub = data => {
+        console.log(data);
+        const ytWrapper = document.getElementById('yt-wrapper');
+        ytWrapper.textContent = '';
+        data.forEach(item => {
+          console.log('sub');
+          try {
+            const {snippet:{resourceId: {channelId}, description, title, thumbnails: {high: {url}}}} = item;
+            ytWrapper.innerHTML += `
+            <div class="yt" data-youtuber="${channelId}">
+              <div class="yt-thumbnail" style="--aspect-ratio:16/9;">
+               <img alt="thumbnail" class="yt-thumbnail__img" src="${url}">
+              </div>
+              <div class="yt-title">${title}</div>
+              <div class="yt-channel">${description}</div>
+            </div>
+          `;
+          } catch (err) {
+            console.error('Error: ', err);
+          }
+        });
+
+        ytWrapper.querySelectorAll('.yt').forEach(item => {
+          item.addEventListener('click', () => {
+            request({
+              method: 'search',
+              part: 'snippet',
+              channelId: item.dataset.youtuber,
+              order: 'date',
+              maxResults: 6,
+            })
+          });
+        });
+
+      };
 
       const render = data => {
         console.log(data);
@@ -262,6 +298,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Error: ', err);
           }
         });
+        playVideo();
       };
 
       gloTube.addEventListener('click', () => {
@@ -292,14 +329,30 @@ document.addEventListener('DOMContentLoaded', () => {
         })
       });
 
-      main.addEventListener('click', () => {
+      subscriptions.addEventListener('click', () => {
         request({
-          method: 'playlists',
+          method: 'subscriptions',
           part: "snippet",
-          channelId: 'UCVswRUcKC-M35RzgPRv8qUg',
+          mine: 'true',
           maxResults: 6,
         })
-      })
+      });
+
+      searchForm.addEventListener('submit', event => {
+        let inputValue = searchForm.elements[0].value;
+        event.preventDefault();
+
+        if (!inputValue) return;
+
+        request({
+          method: 'search',
+          part: 'snippet',
+          order: 'relevance',
+          maxResults: 6,
+          q: inputValue,
+        })
+
+      });
 
     }
   }
